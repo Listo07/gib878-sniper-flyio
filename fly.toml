@@ -1,0 +1,10 @@
+app = "gib878-bot"
+kill_signal = "SIGINT"
+kill_timeout = 5
+processes = []
+
+[env]
+  NODE_ENV = "production"
+
+[build]
+  dockerfile = "Dockerfile"
