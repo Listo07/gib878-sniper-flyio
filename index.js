@@ -9,12 +9,15 @@ import {
 
 import dotenv from 'dotenv';
 import http from 'http';
+import bs58 from 'bs58';
 
 dotenv.config();
 
 // Connexion à Solana
 const connection = new Connection(process.env.RPC_URL, 'confirmed');
-const secretKey = Uint8Array.from(Buffer.from(process.env.PRIVATE_KEY, 'base64'));
+
+// Decode base58 Phantom private key
+const secretKey = bs58.decode(process.env.PRIVATE_KEY);
 const wallet = Keypair.fromSecretKey(secretKey);
 
 console.log("Wallet connecté:", wallet.publicKey.toBase58());
@@ -39,9 +42,6 @@ async function sendSol(destination, amountSol) {
   }
 }
 
-// Lancer une transaction automatique (optionnel)
-await sendSol("6rnwNH6SazWjxYr9Pb7EVz8ehHWKXvhrDSGnos2RVzDp", 0.001);
-
 // Serveur HTTP minimal pour Fly.io
 const port = process.env.PORT || 3000;
 http.createServer(async (req, res) => {
@@ -49,7 +49,6 @@ http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end("Bot Solana actif.");
   } else if (req.url.startsWith("/send")) {
-    // Exemple: /send?to=ADRESSE&amount=0.01
     const url = new URL(req.url, `http://${req.headers.host}`);
     const to = url.searchParams.get('to');
     const amount = parseFloat(url.searchParams.get('amount'));
