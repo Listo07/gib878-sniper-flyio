@@ -13,5 +13,8 @@ RUN npm install
 # Copie le reste du projet dans le container
 COPY . .
 
+# Expose le port attendu (ex. : 3000)
+EXPOSE 3000
+
 # Commande de lancement du bot
 CMD ["node", "index.js"]
