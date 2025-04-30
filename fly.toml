@@ -1,4 +1,4 @@
-app = "gib878-bot"
+app = "gib878-phantom"
 kill_signal = "SIGINT"
 kill_timeout = 5
 processes = []
