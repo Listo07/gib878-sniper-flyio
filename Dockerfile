@@ -16,5 +16,5 @@ COPY . .
 # Expose le port attendu (ex. : 3000)
 EXPOSE 3000
 
-# Commande de lancement du bot
+# Commande de lancement
 CMD ["node", "index.js"]
