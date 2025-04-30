@@ -1,10 +1,10 @@
-app = "gib878-phantom"
+app = "gib878-sniper-flyio-v2"
 kill_signal = "SIGINT"
 kill_timeout = 5
 processes = []
 
 [env]
-  NODE_ENV = "production"
+NODE_ENV = "production"
 
 [build]
   dockerfile = "Dockerfile"
