@@ -1,20 +1,20 @@
-# Image officielle Node.js v18
+# Étape 1 : Image officielle Node.js
 FROM node:18
 
-# Crée le répertoire de travail dans le container
+# Étape 2 : Dossier de travail
 WORKDIR /app
 
-# Copie uniquement les fichiers de dépendances d’abord pour optimiser le cache Docker
+# Étape 3 : Copie des fichiers de dépendances
 COPY package*.json ./
 
-# Installation des dépendances
+# Étape 4 : Installation des dépendances
 RUN npm install
 
-# Copie le reste du projet dans le container
+# Étape 5 : Copie du reste du projet
 COPY . .
 
-# Expose le port attendu (ex. : 3000)
+# Étape 6 : Port exposé pour Fly.io
 EXPOSE 3000
 
-# Commande de lancement
+# Étape 7 : Commande de lancement
 CMD ["node", "index.js"]
