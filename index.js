@@ -1,63 +1,57 @@
-import {
-  Connection,
-  Keypair,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  sendAndConfirmTransaction
-} from '@solana/web3.js';
+const http = require('http');
+const { google } = require('googleapis');
+const { GoogleAuth } = require('google-auth-library');
 
-import dotenv from 'dotenv';
-import http from 'http';
-import bs58 from 'bs58';
+// === CONFIGURATION ===
+const PORT = process.env.PORT || 3000;
+const SPREADSHEET_ID = '1-SBY6gTLpY7AQEqqT8fJ-XxOAiwRDyStk4NovzaVVZk'; // Ton Sheet
+const SHEET_NAME = 'Sheet1'; // Change si tu as renommé
 
-dotenv.config();
-
-// Connexion à Solana
-const connection = new Connection(process.env.RPC_URL, 'confirmed');
-const secretKey = bs58.decode(process.env.PRIVATE_KEY);
-const wallet = Keypair.fromSecretKey(secretKey);
-
-console.log("Wallet connecté:", wallet.publicKey.toBase58());
-
-async function sendSol(destination, amountSol) {
-  const to = new PublicKey(destination);
-  const lamports = amountSol * 1e9;
-
-  const tx = new Transaction().add(SystemProgram.transfer({
-    fromPubkey: wallet.publicKey,
-    toPubkey: to,
-    lamports
-  }));
-
-  try {
-    const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
-    console.log("TX envoyée:", signature);
-    return signature;
-  } catch (err) {
-    console.error("Erreur d'envoi:", err);
-    return null;
-  }
-}
-
-// Serveur HTTP minimal Fly.io
-const port = process.env.PORT || 3000;
-http.createServer(async (req, res) => {
-  if (req.url === "/") {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end("Bot Solana actif.");
-  } else if (req.url.startsWith("/send")) {
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const to = url.searchParams.get('to');
-    const amount = parseFloat(url.searchParams.get('amount'));
-    const tx = await sendSol(to, amount);
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ success: !!tx, tx }));
-  } else {
-    res.writeHead(404);
-    res.end("Not found");
-  }
-}).listen(port, () => {
-  console.log(`Serveur HTTP lancé sur le port ${port}`);
+// === SETUP SERVEUR DE STATUS ===
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Bot actif et connecté à Google Sheets.');
 });
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Serveur démarré sur http://0.0.0.0:${PORT}`);
+  syncCommands();
+});
+
+// === LECTURE GOOGLE SHEETS ===
+async function syncCommands() {
+  try {
+    const auth = new GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+    });
+
+    const authClient = await auth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: authClient });
+
+    const result = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME}!A2:C2`, // Lecture ligne 2 pour test
+    });
+
+    const rows = result.data.values;
+    if (!rows || rows.length === 0) {
+      console.log('Aucune commande trouvée.');
+      return;
+    }
+
+    const [command, amount, target] = rows[0];
+    console.log(`Commande détectée: ${command}, Montant: ${amount}, Cible: ${target}`);
+
+    // === EXÉCUTION DE BASE ===
+    if (command.toLowerCase() === 'buy') {
+      console.log(`>>> Achat simulé de ${amount} USDC avec target de ${target}%`);
+      // ICI tu peux appeler ton vrai bot trading
+    }
+
+  } catch (error) {
+    console.error('Erreur de synchro Google Sheets:', error.message);
+  }
+
+  // Re-scan toutes les 30 secondes
+  setTimeout(syncCommands, 30000);
+}
