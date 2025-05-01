@@ -1,23 +1,17 @@
 {
-  "name": "solana-flyio-sniper-bot",
+  "name": "solana-sniper-bot",
   "version": "1.0.0",
-  "description": "A Solana sniper bot deployed on Fly.io",
+  "description": "Bot Solana de transfert automatique via Fly.io",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@solana/web3.js": "^1.95.2",
+    "@solana/web3.js": "^1.88.2",
     "dotenv": "^16.3.1",
     "bs58": "^5.0.0"
   },
-  "keywords": [
-    "solana",
-    "flyio",
-    "sniper",
-    "bot"
-  ],
+  "keywords": ["solana", "fly.io", "bot", "crypto"],
   "author": "Listo07",
   "license": "MIT"
 }
