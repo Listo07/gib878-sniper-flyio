@@ -1,57 +1,91 @@
-const http = require('http');
-const { google } = require('googleapis');
-const { GoogleAuth } = require('google-auth-library');
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  sendAndConfirmTransaction
+} from '@solana/web3.js';
 
-// === CONFIGURATION ===
-const PORT = process.env.PORT || 3000;
-const SPREADSHEET_ID = '1-SBY6gTLpY7AQEqqT8fJ-XxOAiwRDyStk4NovzaVVZk'; // Ton Sheet
-const SHEET_NAME = 'Sheet1'; // Change si tu as renommé
+import dotenv from 'dotenv';
+import http from 'http';
+import bs58 from 'bs58';
+import { google } from 'googleapis';
+import { readFile } from 'fs/promises';
 
-// === SETUP SERVEUR DE STATUS ===
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Bot actif et connecté à Google Sheets.');
-});
+dotenv.config();
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Serveur démarré sur http://0.0.0.0:${PORT}`);
-  syncCommands();
-});
+// Connexion Solana
+const connection = new Connection(process.env.RPC_URL, 'confirmed');
+const secretKey = bs58.decode(process.env.PRIVATE_KEY);
+const wallet = Keypair.fromSecretKey(secretKey);
 
-// === LECTURE GOOGLE SHEETS ===
-async function syncCommands() {
+console.log("Wallet connecté:", wallet.publicKey.toBase58());
+
+// Fonction d’envoi de SOL
+async function sendSol(destination, amountSol) {
+  const to = new PublicKey(destination);
+  const lamports = amountSol * 1e9;
+
+  const tx = new Transaction().add(SystemProgram.transfer({
+    fromPubkey: wallet.publicKey,
+    toPubkey: to,
+    lamports
+  }));
+
   try {
-    const auth = new GoogleAuth({
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-    });
-
-    const authClient = await auth.getClient();
-    const sheets = google.sheets({ version: 'v4', auth: authClient });
-
-    const result = await sheets.spreadsheets.values.get({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME}!A2:C2`, // Lecture ligne 2 pour test
-    });
-
-    const rows = result.data.values;
-    if (!rows || rows.length === 0) {
-      console.log('Aucune commande trouvée.');
-      return;
-    }
-
-    const [command, amount, target] = rows[0];
-    console.log(`Commande détectée: ${command}, Montant: ${amount}, Cible: ${target}`);
-
-    // === EXÉCUTION DE BASE ===
-    if (command.toLowerCase() === 'buy') {
-      console.log(`>>> Achat simulé de ${amount} USDC avec target de ${target}%`);
-      // ICI tu peux appeler ton vrai bot trading
-    }
-
-  } catch (error) {
-    console.error('Erreur de synchro Google Sheets:', error.message);
+    const signature = await sendAndConfirmTransaction(connection, tx, [wallet]);
+    console.log("TX envoyée:", signature);
+    return signature;
+  } catch (err) {
+    console.error("Erreur d'envoi:", err);
+    return null;
   }
-
-  // Re-scan toutes les 30 secondes
-  setTimeout(syncCommands, 30000);
 }
+
+// Fonction lecture des commandes depuis Google Sheets
+async function readCommandsFromSheet() {
+  const auth = new google.auth.GoogleAuth({
+    keyFile: 'google-key.json',
+    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+  });
+  const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
+
+  const sheetId = process.env.SHEET_ID;
+  const range = 'Sheet1!A2:C';
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetId,
+    range,
+  });
+
+  const rows = res.data.values;
+  if (rows?.length) {
+    for (const row of rows) {
+      const [command, amount, target] = row;
+      if (command?.toLowerCase() === 'send' && amount && target) {
+        console.log(`Exécution : send ${amount} SOL à ${target}`);
+        await sendSol(target, parseFloat(amount));
+      }
+    }
+  }
+}
+
+// Boucle régulière pour checker le sheet
+setInterval(() => {
+  readCommandsFromSheet().catch(console.error);
+}, 15000);
+
+// Serveur HTTP Fly.io
+const port = process.env.PORT || 3000;
+http.createServer((req, res) => {
+  if (req.url === "/") {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end("Bot Solana actif avec synchronisation Sheets.");
+  } else {
+    res.writeHead(404);
+    res.end("Not found");
+  }
+}).listen(port, () => {
+  console.log(`Serveur HTTP lancé sur le port ${port}`);
+});
